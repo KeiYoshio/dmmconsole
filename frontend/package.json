@@ -1,0 +1,22 @@
+{
+  "name": "dmmconsole-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev":     "vite",
+    "build":   "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue":      "^3.4.0",
+    "vuetify":  "^3.5.0",
+    "pinia":    "^2.1.7",
+    "chart.js": "^4.4.0",
+    "@mdi/font": "^7.4.47"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue":    "^5.0.0",
+    "vite":                  "^5.0.0",
+    "vite-plugin-vuetify":   "^2.0.0"
+  }
+}

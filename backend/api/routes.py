@@ -1,0 +1,166 @@
+"""REST API routes."""
+
+from __future__ import annotations
+
+import asyncio
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from ..gpib.manager        import GPIBManager, ConnectionConfig
+from ..instruments.registry import REGISTRY, list_models, create
+from ..measurement.session  import MeasurementSession
+
+router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# Request / response models
+# ---------------------------------------------------------------------------
+
+class ConnectRequest(BaseModel):
+    model_id:    str
+    interface:   str = "gpib"   # "gpib" | "lan" | "usb"
+    gpib_addr:   int = 6
+    ip_address:  str = ""
+    visa_string: str = ""
+
+class CommandRequest(BaseModel):
+    function: str | None = None
+    range:    str | None = None
+    nplc:     float | None = None
+
+class StatusResponse(BaseModel):
+    connected:   bool
+    model_id:    str | None = None
+    model_name:  str | None = None
+    interface:   str | None = None
+    streaming:   bool = False
+
+
+# ---------------------------------------------------------------------------
+# Instrument discovery
+# ---------------------------------------------------------------------------
+
+@router.get("/instruments")
+def get_instruments():
+    """Return list of all registered instrument models with their capabilities."""
+    result = []
+    for m in list_models():
+        cap = REGISTRY[m["id"]].static_capability()
+        result.append({**m, "capability": cap.to_dict()})
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Connection
+# ---------------------------------------------------------------------------
+
+@router.post("/connect")
+def connect(req: ConnectRequest):
+    sess = MeasurementSession.get()
+    mgr  = GPIBManager.get()
+    sess.stop()  # stop any running stream before reconnecting
+    try:
+        config = ConnectionConfig(
+            interface   = req.interface,
+            model_id    = req.model_id,
+            gpib_addr   = req.gpib_addr,
+            ip_address  = req.ip_address,
+            visa_string = req.visa_string,
+        )
+        resource   = mgr.connect(config)
+        instrument = create(req.model_id, resource)
+        # Clear SCPI error state (-410/-420) left from any previous session
+        try:
+            resource.write("*CLS")
+        except Exception:
+            pass
+        sess.set_instrument(instrument)
+        idn = ""
+        try:
+            idn = instrument.get_idn()
+        except Exception:
+            pass
+        return {"ok": True, "idn": idn}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/disconnect")
+def disconnect():
+    MeasurementSession.get().stop()
+    MeasurementSession.get().clear_instrument()
+    GPIBManager.get().disconnect()
+    return {"ok": True}
+
+
+@router.get("/status")
+def status() -> StatusResponse:
+    mgr  = GPIBManager.get()
+    sess = MeasurementSession.get()
+    if not mgr.is_connected:
+        return StatusResponse(connected=False)
+    cfg = mgr.config
+    cap = REGISTRY[cfg.model_id].static_capability()
+    return StatusResponse(
+        connected  = True,
+        model_id   = cfg.model_id,
+        model_name = cap.model,
+        interface  = cfg.interface,
+        streaming  = sess.is_running,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Instrument control
+# ---------------------------------------------------------------------------
+
+@router.post("/command")
+async def command(req: CommandRequest):
+    sess = MeasurementSession.get()
+    mgr  = GPIBManager.get()
+    if not mgr.is_connected:
+        raise HTTPException(status_code=400, detail="Not connected.")
+
+    instrument = sess._instrument
+    if instrument is None:
+        raise HTTPException(status_code=400, detail="No instrument.")
+
+    try:
+        settings = req.model_dump(exclude_none=True)
+        async with sess._lock:
+            await asyncio.to_thread(instrument.apply_settings, settings)
+        return {"ok": True}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/reset")
+async def reset_instrument():
+    sess = MeasurementSession.get()
+    if sess._instrument is None:
+        raise HTTPException(status_code=400, detail="Not connected.")
+    try:
+        async with sess._lock:
+            await asyncio.to_thread(sess._instrument.reset)
+        return {"ok": True}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/measure")
+async def measure_once():
+    sess = MeasurementSession.get()
+    if sess._instrument is None:
+        raise HTTPException(status_code=400, detail="Not connected.")
+    try:
+        return await sess.measure_once()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.get("/buffer")
+def get_buffer():
+    """Return the current measurement buffer (for reconnected clients)."""
+    return MeasurementSession.get().get_buffer()
