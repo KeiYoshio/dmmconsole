@@ -17,7 +17,6 @@ First stable release.
   - Keithley 2000 (SCPI) – implemented, untested
   - Keithley 2010 (SCPI) – implemented, untested
   - ADCMT 7451A (SCPI) – tested
-  - Note: all four models have GPIB and RS-232C only; LAN/USB-TMC not supported by hardware
 - **ADCMT 7451A USB driver** (`ad7451a_usb`) – work in progress, excluded from UI
 - Real-time measurement display with SI prefix auto-scaling (μ / m / k / M …)
 - Oscilloscope-like waveform graph (Chart.js) with selectable time window

@@ -65,12 +65,6 @@ Then open http://localhost:5173.
 | ADCMT 7451A | GPIB | Tested |
 | ADCMT 7451A | USB direct | **Work in progress – not functional** |
 
-> **Note on interfaces:** HP 34401A, Keithley 2000/2010, and ADCMT 7451A have GPIB
-> and RS-232C ports only — they do not support LAN or USB-TMC.
-> RS-232C is not currently implemented in dmmconsole.
-> The LAN and USB-TMC options in the connection dialog apply to other instruments
-> that support those interfaces (e.g. newer Keysight/Agilent models).
-
 
 ## License
 
