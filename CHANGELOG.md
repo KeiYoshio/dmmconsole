@@ -12,11 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 First stable release.
 
 ### Added
-- **Instruments supported (GPIB)**
-  - HP / Agilent 34401A (SCPI)
-  - Keithley 2000 (SCPI)
-  - Keithley 2010 (SCPI)
-  - ADCMT 7451A (SCPI over GPIB)
+- **Instruments supported via GPIB**
+  - HP / Agilent 34401A (SCPI) – tested
+  - Keithley 2000 (SCPI) – implemented, untested
+  - Keithley 2010 (SCPI) – implemented, untested
+  - ADCMT 7451A (SCPI) – tested
+  - Note: all four models have GPIB and RS-232C only; LAN/USB-TMC not supported by hardware
 - **ADCMT 7451A USB driver** (`ad7451a_usb`) – work in progress, excluded from UI
 - Real-time measurement display with SI prefix auto-scaling (μ / m / k / M …)
 - Oscilloscope-like waveform graph (Chart.js) with selectable time window
