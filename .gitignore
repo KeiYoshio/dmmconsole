@@ -6,3 +6,9 @@ venv/
 frontend/node_modules/
 frontend/dist/
 .DS_Store
+
+# Proprietary vendor materials (kept locally for reference, not for redistribution)
+docs/
+
+# USB protocol investigation scripts (local use only, not for public distribution)
+usb_investigation/

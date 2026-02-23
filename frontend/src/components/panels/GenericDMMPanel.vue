@@ -87,6 +87,13 @@
       <v-divider vertical class="mx-1" />
 
       <!-- ── Utility buttons ── -->
+      <!-- ── Command error ── -->
+      <v-col v-if="cmdError" cols="12">
+        <v-alert type="error" density="compact" closable @click:close="cmdError=''">
+          {{ cmdError }}
+        </v-alert>
+      </v-col>
+
       <v-col cols="auto" class="d-flex flex-column ga-1">
         <div class="text-caption text-medium-emphasis mb-1">Utility</div>
         <v-btn
@@ -108,7 +115,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useInstrumentStore }  from '../../stores/instrument'
 import { useMeasurementStore } from '../../stores/measurement'
 
@@ -133,25 +140,35 @@ watch(() => cap.value, (c) => {
   ;(c.settings ?? []).forEach(s => { settingValues[s.id] = s.default })
 }, { immediate: true })
 
+// Error display
+const cmdError = ref('')
+
+async function sendCmd(settings) {
+  cmdError.value = ''
+  await instrStore.sendCommand(settings)
+}
+
 // ------------------------------------------------------------------ actions
 
 async function setFunction(fnId) {
   try {
-    await instrStore.sendCommand({ function: fnId })
-    // Reset range when function changes
+    await sendCmd({ function: fnId })
     const firstRange = currentRanges.value[0]
-    if (firstRange) await instrStore.sendCommand({ range: firstRange })
-  } catch (e) { console.error(e) }
+    if (firstRange) await sendCmd({ range: firstRange })
+  } catch (e) {
+    cmdError.value = e.message
+    console.error(e)
+  }
 }
 
 async function setRange(r) {
-  try { await instrStore.sendCommand({ range: r }) }
-  catch (e) { console.error(e) }
+  try { await sendCmd({ range: r }) }
+  catch (e) { cmdError.value = e.message; console.error(e) }
 }
 
 async function setSetting(id, value) {
-  try { await instrStore.sendCommand({ [id]: value }) }
-  catch (e) { console.error(e) }
+  try { await sendCmd({ [id]: value }) }
+  catch (e) { cmdError.value = e.message; console.error(e) }
 }
 
 async function measureOnce() {

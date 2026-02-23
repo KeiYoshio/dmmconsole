@@ -2,7 +2,8 @@
 
 Web-based Digital Multimeter console panel.
 
-Supports **HP 34401A**, **Keithley 2000**, **Keithley 2010** (and any SCPI DMM via subclassing).
+Supports **HP 34401A**, **Keithley 2000**, **Keithley 2010** (and any SCPI DMM via subclassing),
+and **ADCMT 7451A** via GPIB.
 
 - Real-time measurement display with SI prefix formatting
 - Oscilloscope-like waveform graph (Chart.js)
@@ -53,6 +54,17 @@ Then open http://localhost:5173.
    REGISTRY["mynewmodel"] = MyNewModel
    ```
 3. Done – the frontend panel is generated automatically from the capability descriptor.
+
+## Instrument status
+
+| Model | Interface | Status |
+|-------|-----------|--------|
+| HP 34401A | GPIB / LAN / USB | Supported |
+| Keithley 2000 | GPIB / LAN | Supported |
+| Keithley 2010 | GPIB / LAN | Supported |
+| ADCMT 7451A | GPIB | Supported |
+| ADCMT 7451A | USB direct | **Work in progress – not functional** |
+
 
 ## License
 

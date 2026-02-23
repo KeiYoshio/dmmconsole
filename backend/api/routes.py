@@ -69,7 +69,28 @@ def connect(req: ConnectRequest):
             ip_address  = req.ip_address,
             visa_string = req.visa_string,
         )
-        resource   = mgr.connect(config)
+        try:
+            resource = mgr.connect(config)
+        except Exception:
+            if config.interface == "usb":
+                # pyvisa cannot open vendor-specific USB (class 0xFF) devices.
+                # Fall back to raw pyusb + USBTMC framing.
+                from ..gpib.usbtmc_raw import USBTMCResource, parse_visa_usb
+                # Clean up partial pyvisa state left by the failed connect()
+                if mgr._rm is not None:
+                    try:
+                        mgr._rm.close()
+                    except Exception:
+                        pass
+                    mgr._rm = None
+                vid, pid, serial = parse_visa_usb(config.visa_string)
+                resource = USBTMCResource(vid, pid, serial)
+                # Register resource with GPIBManager so disconnect() works
+                mgr._resource = resource
+                mgr._config   = config
+            else:
+                raise
+
         instrument = create(req.model_id, resource)
         # Clear SCPI error state (-410/-420) left from any previous session
         try:
