@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-02-24
+
+### Added
+- **Instrument Console home page** (`/`) – landing page with cards for each
+  instrument / tool; replaces the single-page DMM layout.
+- **Vue Router** – client-side routing introduced (`vue-router@4`).
+  DMM panel moved to `/dmm`; new `/terminal` route added.
+- **SCPI Terminal** (`/terminal`) – raw command console for any connected instrument:
+  - TX pane (sent commands) and RX pane (received responses) with independent scrolling
+    and per-entry timestamps.
+  - CR / LF toggle buttons; selected characters are appended to every sent command.
+  - Auto-focus on the command input field after each send for continuous entry.
+  - Connection bar (GPIB / LAN / USB) independent from the DMM connection.
+  - `TerminalManager` singleton – separate from `GPIBManager` so DMM and Terminal
+    can hold independent connections simultaneously.
+- **USB instrument discovery** – VISA Resource field in both the Terminal and DMM
+  connection bars is now a combobox:
+  - Clicking / focusing the field scans connected USB devices via pyusb.
+  - Dropdown shows manufacturer, product name, and the full VISA resource string.
+  - Non-instrument USB devices (HID, Mass Storage, Hub, Audio, Video) are excluded.
+- **`GET /api/terminal/usb_resources`** – enumerate connected USB instruments.
+- **`POST /api/terminal/connect|disconnect|send`** – terminal connection and
+  raw SCPI command API (write or query auto-detected by `?` in command string).
+
+### Changed
+- App title renamed from **DMM Console** to **Instrument Console**
+  (toolbar, FastAPI title, home page).
+- `backend/main.py` now reads `version` from `backend/version.py`
+  (was hardcoded `"0.1.0"`).
+
+---
+
 ## [1.0.0] - 2026-02-23
 
 First stable release.

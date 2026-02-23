@@ -1,13 +1,15 @@
-# dmmconsole  [![version](https://img.shields.io/badge/version-1.0.0-blue)](release_notes/v1.0.0.md)
+# Instrument Console (dmmconsole)  [![version](https://img.shields.io/badge/version-1.1.0-blue)](release_notes/v1.1.0.md)
 
-Web-based Digital Multimeter console panel.
+Web-based instrument control panel — Digital Multimeter and SCPI Terminal.
 
-Supports **HP 34401A**, **Keithley 2000**, **Keithley 2010** (and any SCPI DMM via subclassing),
-and **ADCMT 7451A** via GPIB.
+Supports **HP 34401A**, **Keithley 2000**, **Keithley 2010**, and **ADCMT 7451A** via GPIB,
+plus a raw SCPI terminal for any connected instrument.
 
 - Real-time measurement display with SI prefix formatting
 - Oscilloscope-like waveform graph (Chart.js)
 - Full control panel reproduced from capability descriptors
+- Raw SCPI terminal with TX / RX history and CR/LF line-ending control
+- USB instrument discovery (VISA resource string auto-populated from dropdown)
 - GPIB via [agilent82357b](../agilent82357b), LAN/USB via PyVISA
 - Vue.js 3 + Vuetify 3 frontend (dark theme, easy to restyle)
 
@@ -43,6 +45,14 @@ sudo uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 cd frontend && npm run dev
 ```
 Then open http://localhost:5173.
+
+## Pages
+
+| URL | Description |
+|-----|-------------|
+| `/` | Home – instrument / tool selection |
+| `/dmm` | DMM control panel with real-time measurement |
+| `/terminal` | Raw SCPI terminal (TX/RX history, CR/LF control) |
 
 ## Adding a new instrument
 

@@ -52,16 +52,40 @@
         />
       </v-col>
 
-      <!-- VISA string (USB) -->
-      <v-col v-else-if="form.interface === 'usb'" cols="6" sm="3">
-        <v-text-field
-          v-model="form.visa_string"
+      <!-- VISA string (USB) – combobox with device discovery -->
+      <v-col v-else-if="form.interface === 'usb'" cols="12" sm="4">
+        <v-combobox
+          :model-value="form.visa_string"
+          @update:model-value="v => form.visa_string = typeof v === 'object' && v ? (v.visa_string ?? '') : (v ?? '')"
+          :items="usbDevices"
+          item-title="visa_string"
+          item-value="visa_string"
           label="VISA Resource"
           density="compact"
           hide-details
-          placeholder="USB0::0x0957::..."
+          :loading="loadingUsb"
           :disabled="instrStore.connected"
-        />
+          placeholder="USB0::0x0957::..."
+          no-filter
+          :no-data-text="loadingUsb ? 'Scanning…' : 'No USB devices found'"
+          @focus="fetchUsbDevices"
+        >
+          <template #item="{ item, props }">
+            <v-list-item v-bind="props">
+              <template #title>
+                <span class="text-body-2 font-weight-medium">
+                  {{ [item.raw.manufacturer, item.raw.product].filter(Boolean).join(' ') || item.raw.visa_string }}
+                </span>
+              </template>
+              <template #subtitle>
+                <span
+                  v-if="item.raw.manufacturer || item.raw.product"
+                  style="font-family: monospace; font-size: 0.75rem"
+                >{{ item.raw.visa_string }}</span>
+              </template>
+            </v-list-item>
+          </template>
+        </v-combobox>
       </v-col>
 
       <!-- Connect / Disconnect button -->
@@ -104,7 +128,7 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { ref, reactive } from 'vue'
 import { useInstrumentStore }  from '../stores/instrument'
 import { useMeasurementStore } from '../stores/measurement'
 
@@ -124,6 +148,23 @@ const form = reactive({
   ip_address:  '',
   visa_string: '',
 })
+
+const usbDevices = ref([])
+const loadingUsb = ref(false)
+
+async function fetchUsbDevices() {
+  if (loadingUsb.value) return
+  loadingUsb.value = true
+  try {
+    const res  = await fetch('/api/terminal/usb_resources')
+    const data = await res.json()
+    usbDevices.value = data.devices ?? []
+  } catch {
+    usbDevices.value = []
+  } finally {
+    loadingUsb.value = false
+  }
+}
 
 async function doConnect() {
   await instrStore.connect({ ...form })

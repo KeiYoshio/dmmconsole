@@ -9,9 +9,12 @@ dmmconsole/
 │   ├── main.py                      # FastAPI app, CORS, SPA fallback, /ws mount
 │   ├── api/
 │   │   ├── routes.py                # REST endpoints (/api/version, /api/instruments, …)
-│   │   └── websocket.py             # WebSocket /ws/stream (measurement streaming)
+│   │   ├── websocket.py             # WebSocket /ws/stream (measurement streaming)
+│   │   └── terminal.py              # REST endpoints (/api/terminal/…)
 │   ├── gpib/
-│   │   └── manager.py               # GPIBManager singleton (GPIB / LAN / USB)
+│   │   └── manager.py               # GPIBManager singleton (GPIB / LAN / USB) – DMM
+│   ├── terminal/
+│   │   └── manager.py               # TerminalManager singleton – independent from DMM
 │   ├── instruments/
 │   │   ├── base.py                  # InstrumentBase, Capability, MeasurementResult
 │   │   ├── registry.py              # REGISTRY dict — add new instruments here
@@ -26,14 +29,21 @@ dmmconsole/
 │       └── session.py               # MeasurementSession singleton (streaming loop)
 └── frontend/
     └── src/
-        ├── App.vue                  # Top-level layout, toolbar, version display
-        ├── main.js
+        ├── App.vue                  # Root component – <RouterView /> only
+        ├── main.js                  # app.use(router, pinia, vuetify)
         ├── plugins/vuetify.js       # Theme (dark, primary=#00e5ff, secondary=#00ff88)
+        ├── router/
+        │   └── index.js             # / → HomeView, /dmm → DmmView, /terminal → TerminalView
         ├── stores/
-        │   ├── instrument.js        # Pinia: connection state, capability, commands
-        │   └── measurement.js       # Pinia: WebSocket client, buffer (max 500 pts)
+        │   ├── instrument.js        # Pinia: DMM connection state, capability, commands
+        │   ├── measurement.js       # Pinia: WebSocket client, buffer (max 500 pts)
+        │   └── terminal.js          # Pinia: terminal connection, TX/RX history
+        ├── views/
+        │   ├── HomeView.vue         # Landing page with instrument/tool cards
+        │   ├── DmmView.vue          # DMM control panel (formerly App.vue content)
+        │   └── TerminalView.vue     # Raw SCPI terminal (TX/RX panes, CR/LF control)
         └── components/
-            ├── ConnectionBar.vue    # Model / interface selector, connect button
+            ├── ConnectionBar.vue    # Model / interface selector, connect button (DMM)
             ├── MeasurementDisplay.vue
             ├── Waveform.vue         # Chart.js realtime scrolling graph
             └── panels/

@@ -1,5 +1,5 @@
 """
-DMM Console – FastAPI application entry point.
+Instrument Console – FastAPI application entry point.
 
 Run:
     sudo uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
@@ -23,15 +23,17 @@ from fastapi.responses import FileResponse
 
 from .api.routes    import router
 from .api.websocket import websocket_router
+from .api.terminal  import router as terminal_router
+from .version       import __version__
 
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="DMM Console",
-    description="Web-based DMM control panel (GPIB / LAN / USB)",
-    version="0.1.0",
+    title="Instrument Console",
+    description="Web-based instrument control panel (GPIB / LAN / USB)",
+    version=__version__,
 )
 
 # Allow all origins in development (restrict in production via nginx)
@@ -44,6 +46,7 @@ app.add_middleware(
 
 app.include_router(router,           prefix="/api")
 app.include_router(websocket_router)
+app.include_router(terminal_router,  prefix="/api/terminal")
 
 # ---------------------------------------------------------------------------
 # Serve built frontend
