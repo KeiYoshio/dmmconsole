@@ -1,4 +1,4 @@
-# dmmconsole
+# dmmconsole  [![version](https://img.shields.io/badge/version-1.0.0-blue)](release_notes/v1.0.0.md)
 
 Web-based Digital Multimeter console panel.
 

@@ -8,6 +8,7 @@
         <span class="text-medium-emphasis"> Console</span>
       </v-app-bar-title>
       <template #append>
+        <span class="text-caption text-disabled me-3">v{{ version }}</span>
         <v-chip
           :color="instrStore.connected ? 'secondary' : 'default'"
           size="small"
@@ -57,7 +58,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useInstrumentStore } from './stores/instrument'
 
 import ConnectionBar    from './components/ConnectionBar.vue'
@@ -66,8 +67,12 @@ import Waveform         from './components/Waveform.vue'
 import GenericDMMPanel  from './components/panels/GenericDMMPanel.vue'
 
 const instrStore = useInstrumentStore()
+const version    = ref('')
 
-onMounted(() => {
+onMounted(async () => {
   instrStore.fetchModels()
+  const res = await fetch('/api/version')
+  const data = await res.json()
+  version.value = data.version ?? ''
 })
 </script>

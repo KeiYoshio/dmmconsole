@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from ..gpib.manager        import GPIBManager, ConnectionConfig
 from ..instruments.registry import REGISTRY, list_models, create
 from ..measurement.session  import MeasurementSession
+from ..version             import __version__
 
 router = APIRouter()
 
@@ -36,6 +37,15 @@ class StatusResponse(BaseModel):
     model_name:  str | None = None
     interface:   str | None = None
     streaming:   bool = False
+
+
+# ---------------------------------------------------------------------------
+# Version
+# ---------------------------------------------------------------------------
+
+@router.get("/version")
+def get_version():
+    return {"version": __version__}
 
 
 # ---------------------------------------------------------------------------
