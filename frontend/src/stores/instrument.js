@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useMeasurementStore } from './measurement'
 
 export const useInstrumentStore = defineStore('instrument', () => {
   // All available models fetched from backend
@@ -67,6 +68,7 @@ export const useInstrumentStore = defineStore('instrument', () => {
   }
 
   async function sendCommand(settings) {
+    const measStore = useMeasurementStore()
     const res = await fetch('/api/command', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -76,10 +78,13 @@ export const useInstrumentStore = defineStore('instrument', () => {
       const data = await res.json()
       throw new Error(data.detail ?? 'Command failed')
     }
+    const data = await res.json()
     // Update local state
     if (settings.function !== undefined) currentFunction.value = settings.function
     if (settings.range    !== undefined) currentRange.value    = settings.range
     if (settings.nplc     !== undefined) currentNplc.value     = settings.nplc
+    // Restart streaming if it was running before the settings change
+    if (data.was_streaming) measStore.start()
   }
 
   async function resetInstrument() {

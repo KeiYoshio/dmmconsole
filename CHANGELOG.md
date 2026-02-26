@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-02-26
+
+### Added
+- **ADCMT 7451A USB direct driver** (`ad7451a_usb`) – now functional and registered.
+  Uses the ADC proprietary command set over USB-TMC.
+  The instrument must be set to LANG=ADC (MENU → 8 I/F → LANG) to use this mode.
+  Key requirements: USB488 REN_CONTROL to enter remote mode; BUS trigger
+  (TRS3 + INI + USB488 TRIGGER); automatic priming cycle after function/range changes.
+
+### Changed
+- **`/api/command` stops the stream before applying settings** – the measurement
+  stream is stopped, the setting is applied, then streaming is automatically restarted
+  if it was running.  The response now includes `was_streaming`.
+- **Function change sends function and default range in a single request** – reduces
+  the number of stop/restart cycles when switching measurement functions.
+
+---
+
 ## [1.1.0] - 2026-02-24
 
 ### Added

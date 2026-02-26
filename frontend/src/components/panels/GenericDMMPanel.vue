@@ -152,9 +152,11 @@ async function sendCmd(settings) {
 
 async function setFunction(fnId) {
   try {
-    await sendCmd({ function: fnId })
-    const firstRange = currentRanges.value[0]
-    if (firstRange) await sendCmd({ range: firstRange })
+    // Include the default range in the same call so there is only one
+    // stop→apply→restart cycle (function change resets range to AUTO anyway).
+    const firstRange = (cap.value.ranges?.[fnId] ?? [])[0]
+    const payload = firstRange ? { function: fnId, range: firstRange } : { function: fnId }
+    await sendCmd(payload)
   } catch (e) {
     cmdError.value = e.message
     console.error(e)

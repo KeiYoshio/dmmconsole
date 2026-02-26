@@ -16,7 +16,7 @@ from .dmm.hp34401a    import HP34401A
 from .dmm.keithley2000 import Keithley2000
 from .dmm.keithley2010 import Keithley2010
 from .dmm.ad7451a     import AD7451A
-# from .dmm.ad7451a_usb import AD7451A_USB  # WIP: USB direct mode – command acceptance not yet solved
+from .dmm.ad7451a_usb import AD7451A_USB
 
 # model_id → class
 REGISTRY: dict[str, type[InstrumentBase]] = {
@@ -24,7 +24,7 @@ REGISTRY: dict[str, type[InstrumentBase]] = {
     "keithley2000": Keithley2000,
     "keithley2010": Keithley2010,
     "ad7451a":      AD7451A,
-    # "ad7451a_usb":  AD7451A_USB,  # WIP: excluded until USB protocol issue is resolved
+    "ad7451a_usb":  AD7451A_USB,
 }
 
 

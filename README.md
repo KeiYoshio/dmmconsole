@@ -1,8 +1,8 @@
-# Instrument Console (dmmconsole)  [![version](https://img.shields.io/badge/version-1.1.0-blue)](release_notes/v1.1.0.md)
+# Instrument Console (dmmconsole)  [![version](https://img.shields.io/badge/version-1.2.0-blue)](release_notes/v1.2.0.md)
 
 Web-based instrument control panel — Digital Multimeter and SCPI Terminal.
 
-Supports **HP 34401A**, **Keithley 2000**, **Keithley 2010**, and **ADCMT 7451A** via GPIB,
+Supports **HP 34401A**, **Keithley 2000**, **Keithley 2010**, and **ADCMT 7451A** (GPIB and USB direct),
 plus a raw SCPI terminal for any connected instrument.
 
 - Real-time measurement display with SI prefix formatting
@@ -73,7 +73,9 @@ Then open http://localhost:5173.
 | Keithley 2000 | GPIB | Implemented, untested |
 | Keithley 2010 | GPIB | Implemented, untested |
 | ADCMT 7451A | GPIB | Tested |
-| ADCMT 7451A | USB direct | **Work in progress – not functional** |
+| ADCMT 7451A | USB direct | Tested |
+
+> Tested on **ADVANTEST AD7451A** (the former brand name; functionally identical to ADCMT 7451A).
 
 
 ## License

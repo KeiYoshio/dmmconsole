@@ -1,35 +1,5 @@
 """ADVANTEST AD7451A / ADCMT 7451A – USB driver (ADC command set).
 
-.. warning::
-    **WORK IN PROGRESS – NOT FUNCTIONAL**
-
-    This driver is excluded from the UI (registry.py) until the underlying
-    USB communication issue is resolved.
-
-    Problem summary (as of 2026-02):
-    ---------------------------------
-    The 7451A exposes a single Vendor-class (0xFF) USB interface with three
-    endpoints: EP 0x02 BULK OUT (commands), EP 0x81 BULK IN (responses),
-    EP 0x83 INTR IN (status/error notifications).
-
-    The official Windows driver (ausb.dll) was reverse-engineered to determine
-    the correct USBTMC-like packet format:
-      - Vendor IN control transfer (bmRequestType=0xC1, bRequest=0xF5) during
-        device open → returns capability byte 0x01.
-      - DEV_DEP_MSG_OUT: 12-byte header + LF-terminated command + 4-byte padding.
-        TransferSize = (len(cmd_with_LF) + 3) & ~3   (padded to 4-byte boundary,
-        derived from func@0x2c9f0 disassembly).
-
-    Despite the CT init and correct packet format, write commands (F1/F2/*RST etc.)
-    are silently ignored by the instrument – reads always return the power-on DCV
-    measurement.  Root cause is unknown; candidates include:
-      - Additional ausb_open() initialisation beyond the CT (not yet fully analysed)
-      - Vendor-specific bulk OUT prologue required before commands
-      - macOS/libusb vs. Windows/WinUSB protocol difference
-
-    Investigation artefacts are kept in dmmconsole/ root:
-      analyze_ausb_start.py, analyze_ctrl*.py, test_*.py, check_interfaces.py
-
 The 7451A supports three command languages:
   SCPI  → GPIB only
   ADC   → GPIB and USB   ← this driver
@@ -38,11 +8,15 @@ The 7451A supports three command languages:
 This module implements the ADC command set for USB control via raw pyusb +
 USBTMC-framed packets (see backend/gpib/usbtmc_raw.py).
 
+Key requirement: The instrument must be switched to remote mode via USB488
+REN_CONTROL before it will accept ADC commands.  This is handled by
+USBTMCResource._usb488_init().  In remote mode, auto-trigger (TRS0) does
+not work; BUS trigger (TRS3 + INI + *TRG) must be used.
+
 References
 ----------
     ADC Corporation 7451A/61A/61P Operation Manual, Section 6.7.3 (ADC commands)
-    VBA sample: docs/extracted/sample/vba/dmm/7451A_61A_USB_sampleprogram_64.xlsm
-    DLL:        docs/extracted/bin/x64/ausb.dll  (reverse-engineered)
+    docs/7451A_USB_investigation_summary.md (full investigation log)
 """
 
 from __future__ import annotations
@@ -59,6 +33,12 @@ _log = logging.getLogger(__name__)
 # USB inter-command delay required by the instrument (Section 6.7.3 CAUTION)
 # ---------------------------------------------------------------------------
 _USB_DELAY = 0.02   # 20 ms
+
+# ---------------------------------------------------------------------------
+# MAV polling: exponential backoff parameters
+# ---------------------------------------------------------------------------
+_MAV_BACKOFF_INIT_MS = 20     # first wait step (ms)
+_MAV_BACKOFF_MAX_MS  = 2_000  # longest single wait step → timeout if exceeded
 
 # ---------------------------------------------------------------------------
 # ADC command function codes (Section 6.7.3, "Measurement → Function")
@@ -224,7 +204,7 @@ class AD7451A_USB(InstrumentBase):
 
     def _write(self, cmd: str) -> None:
         """Send a write-only ADC command with the mandatory USB delay."""
-        _log.debug("USB write: %r", cmd)
+        # _log.debug("USB write: %r", cmd)  # too noisy during streaming
         self._res.write(cmd)
         time.sleep(_USB_DELAY)
 
@@ -248,6 +228,43 @@ class AD7451A_USB(InstrumentBase):
         self.set_range(self._range)
         self.set_nplc(self._nplc)
 
+    def _prime_after_change(self) -> None:
+        """Send INI+TRIGGER cycles until the device responds, discarding results.
+
+        After a function change (F-code) the 7451A ignores the very first
+        INI+TRIGGER — STB stays 0x00 for ~4.5 s.  The *next* cycle works
+        instantly (~300 ms).  This method absorbs the dead cycle so the
+        streaming loop never sees the timeout.
+
+        Uses a short fixed poll (50 ms × 10 = 500 ms max) per attempt
+        instead of the full exponential backoff, to keep latency low.
+        """
+        for attempt in range(3):
+            self._write("TRS3")
+            self._write("INI")
+            self._res.trigger()
+            time.sleep(_USB_DELAY)
+            # Short poll: 10 × 50 ms = 500 ms max per attempt
+            got_mav = False
+            for _ in range(10):
+                time.sleep(0.05)
+                stb = self._res.read_status_byte()
+                if stb & 0x10:
+                    got_mav = True
+                    break
+            if got_mav:
+                # Drain the measurement data (read() sends REQUEST then reads BULK IN)
+                try:
+                    self._res.read()
+                except Exception:
+                    pass
+                _log.info("_prime_after_change: OK on attempt %d", attempt + 1)
+                return
+            # No MAV — do NOT call read() here (it would block for 10 s).
+            # Just retry; the device will eventually be ready.
+            _log.info("_prime_after_change: attempt %d no MAV (500 ms), retrying", attempt + 1)
+        _log.warning("_prime_after_change: all attempts failed")
+
     # ------------------------------------------------------------------
     # InstrumentBase interface
     # ------------------------------------------------------------------
@@ -256,8 +273,7 @@ class AD7451A_USB(InstrumentBase):
         return _CAPABILITY
 
     def get_idn(self) -> str:
-        # *IDN? is not supported in ADC command mode; return static string.
-        return "ADVANTEST AD7451A (USB/ADC mode)"
+        return self._res.query("*IDN?")
 
     def reset(self) -> None:
         self._write("*RST")
@@ -268,7 +284,8 @@ class AD7451A_USB(InstrumentBase):
         self._setup()   # *RST restores header ON and default trigger settings
 
     def close(self) -> None:
-        pass   # resource lifetime managed by GPIBManager
+        # GO_TO_LOCAL is called by USBTMCResource.close()
+        pass
 
     # ------------------------------------------------------------------
     # DMM control
@@ -281,6 +298,14 @@ class AD7451A_USB(InstrumentBase):
         _log.info("set_function(%r) → %s", func_id, adc_cmd)
         self._write(adc_cmd)
         self._function = func_id
+        # F-code resets trigger source to TRS0 (auto-trigger), which does not
+        # work in remote mode.  Re-assert BUS trigger mode explicitly.
+        self._write("TRS3")
+        # After a function change the device ignores the first INI+TRIGGER
+        # cycle (STB stays 0x00 for ~4.5 s).  Perform one "priming"
+        # measurement here and discard the result so that measure() always
+        # sees a responsive device.
+        self._prime_after_change()
 
     def set_range(self, range_str: str) -> None:
         code = _RANGE_ADC.get(self._function, {}).get(range_str)
@@ -290,12 +315,14 @@ class AD7451A_USB(InstrumentBase):
         _log.info("set_range(%r) → %s", range_str, code)
         self._write(code)
         self._range = range_str
+        self._prime_after_change()
 
     def set_nplc(self, nplc: float) -> None:
         cmd = f"ITP{nplc:g}"
         _log.info("set_nplc(%g) → %s", nplc, cmd)
         self._write(cmd)
         self._nplc = nplc
+        self._prime_after_change()
 
     def apply_settings(self, settings: dict) -> None:
         if "function" in settings:
@@ -309,12 +336,50 @@ class AD7451A_USB(InstrumentBase):
     # Measurement
     # ------------------------------------------------------------------
 
+    def _wait_mav(self) -> bool:
+        """Poll READ_STATUS_BYTE until MAV (bit 4) is set.
+
+        Uses exponential backoff: 20 ms → 40 ms → 80 ms → … → _MAV_BACKOFF_MAX_MS.
+        Returns True when MAV is set, False if timed out.
+        """
+        if not hasattr(self._res, "read_status_byte"):
+            time.sleep(1.0)   # fallback: fixed wait
+            return True
+        wait_ms = _MAV_BACKOFF_INIT_MS
+        t0 = time.monotonic()
+        polls = 0
+        while True:
+            stb = self._res.read_status_byte()
+            polls += 1
+            if stb & 0x10:    # MAV bit
+                return True
+            if wait_ms >= _MAV_BACKOFF_MAX_MS:
+                # One final check after the maximum wait step
+                time.sleep(wait_ms / 1000.0)
+                stb = self._res.read_status_byte()
+                elapsed_ms = (time.monotonic() - t0) * 1000
+                _log.warning("_wait_mav: TIMEOUT after %d polls (%.0fms), final STB=0x%02X",
+                             polls + 1, elapsed_ms, stb)
+                return bool(stb & 0x10)
+            time.sleep(wait_ms / 1000.0)
+            wait_ms = min(wait_ms * 2, _MAV_BACKOFF_MAX_MS)
+
     def measure(self) -> MeasurementResult:
-        """Arm trigger, fire *TRG, and read one measurement result."""
+        """Arm trigger, fire USB488 TRIGGER, wait for MAV, read."""
+        self._write("TRS3")      # defensive: re-assert BUS trigger every measurement
         self._write("INI")       # arm: IDLE → INITIATE state
-        self._write("*TRG")      # trigger one measurement (TRS3 = BUS mode)
-        raw   = self._res.read().strip()   # blocks until instrument responds
-        value = float(raw)
+        # Use USB488 TRIGGER (MsgID=0x80) — the same method as ausb_trigger().
+        # Text "*TRG\n" via DEV_DEP_MSG_OUT does NOT reliably fire TRS3 BUS trigger.
+        self._res.trigger()
+        time.sleep(_USB_DELAY)
+        if not self._wait_mav():
+            raise RuntimeError("AD7451A_USB: MAV not set after 10 s — measurement timeout")
+        raw   = self._res.read().strip()
+        try:
+            value = float(raw)
+        except ValueError:
+            _log.error("AD7451A_USB: cannot parse %r", raw)
+            value = math.nan
         if abs(value) > 9.0e36:  # 9.99999E+37 = overload
             value = math.nan
         return MeasurementResult(

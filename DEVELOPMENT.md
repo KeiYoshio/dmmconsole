@@ -24,7 +24,7 @@ dmmconsole/
 │   │       ├── keithley2000.py
 │   │       ├── keithley2010.py
 │   │       ├── ad7451a.py           # ADCMT 7451A – GPIB/SCPI
-│   │       └── ad7451a_usb.py       # ADCMT 7451A – USB/ADC (WIP, not in registry)
+│   │       └── ad7451a_usb.py       # ADCMT 7451A – USB/ADC
 │   └── measurement/
 │       └── session.py               # MeasurementSession singleton (streaming loop)
 └── frontend/

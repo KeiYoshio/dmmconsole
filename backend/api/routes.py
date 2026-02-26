@@ -160,9 +160,11 @@ async def command(req: CommandRequest):
 
     try:
         settings = req.model_dump(exclude_none=True)
+        was_streaming = sess.is_running
+        sess.stop()   # stop stream before changing settings so the device can settle
         async with sess._lock:
             await asyncio.to_thread(instrument.apply_settings, settings)
-        return {"ok": True}
+        return {"ok": True, "was_streaming": was_streaming}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
