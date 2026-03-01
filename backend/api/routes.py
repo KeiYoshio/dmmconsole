@@ -40,6 +40,13 @@ class CommandRequest(BaseModel):
     phase:     float | None = None
     output:    bool | None = None
     gate_time: str | None = None
+    # Counter-specific settings
+    counter_reset: bool | None = None
+    coupling: str | None = None
+
+class UploadWaveformRequest(BaseModel):
+    slot: int             # 1..64
+    samples: list[int]    # 8192 values, each 0..16383
 
 class StatusResponse(BaseModel):
     connected:   bool
@@ -210,6 +217,33 @@ async def measure_once():
 def get_buffer():
     """Return the current measurement buffer (for reconnected clients)."""
     return MeasurementSession.get().get_buffer()
+
+
+# ---------------------------------------------------------------------------
+# Arbitrary waveform upload
+# ---------------------------------------------------------------------------
+
+@router.post("/upload_waveform")
+async def upload_waveform(req: UploadWaveformRequest):
+    sess = MeasurementSession.get()
+    mgr  = GPIBManager.get()
+    if not mgr.is_connected:
+        raise HTTPException(status_code=400, detail="Not connected.")
+
+    instrument = sess._instrument
+    if instrument is None:
+        raise HTTPException(status_code=400, detail="No instrument.")
+    if not hasattr(instrument, "upload_waveform"):
+        raise HTTPException(status_code=400, detail="Instrument does not support waveform upload.")
+
+    try:
+        was_streaming = sess.is_running
+        sess.stop()
+        async with sess._lock:
+            result = await asyncio.to_thread(instrument.upload_waveform, req.slot, req.samples)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 # ---------------------------------------------------------------------------

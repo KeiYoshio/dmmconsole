@@ -31,47 +31,78 @@ from ..base import Capability, InstrumentBase, MeasurementResult
 _log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Waveform table: index -> (label, icon)
+# Waveform table – based on fygen (github.com/mattwach/fygen) wavedef.py.
+#
+# FY6800 has different waveform IDs for CH1 vs CH2.
+# CH2 IDs diverge from CH1 starting at "Adjustable Pulse" (CH2 = CH1 - 1).
+# "Rectangle" and "Trapezoid" are FY6900-only and excluded.
+# Arbitrary waveforms (arb1-64) start at CH1=34, CH2=33.
 # ---------------------------------------------------------------------------
-_WAVEFORMS: list[dict] = [
-    {"id": "0",  "label": "Sine",        "icon": "mdi-sine-wave"},
-    {"id": "1",  "label": "Square",      "icon": "mdi-square-wave"},
-    {"id": "2",  "label": "Rectangle",   "icon": "mdi-square-wave"},
-    {"id": "3",  "label": "Trapezoid",   "icon": "mdi-shape"},
-    {"id": "4",  "label": "CMOS",        "icon": "mdi-chip"},
-    {"id": "5",  "label": "Adj Pulse",   "icon": "mdi-pulse"},
-    {"id": "6",  "label": "DC",          "icon": "mdi-minus"},
-    {"id": "7",  "label": "Triangle",    "icon": "mdi-triangle-wave"},
-    {"id": "8",  "label": "Ramp",        "icon": "mdi-chart-line"},
-    {"id": "9",  "label": "Staircase+",  "icon": "mdi-stairs-up"},
-    {"id": "10", "label": "Staircase-",  "icon": "mdi-stairs-down"},
-    {"id": "11", "label": "Half Wave",   "icon": "mdi-wave"},
-    {"id": "12", "label": "Full Wave",   "icon": "mdi-wave"},
-    {"id": "13", "label": "Pos Stair",   "icon": "mdi-stairs-up"},
-    {"id": "14", "label": "Neg Stair",   "icon": "mdi-stairs-down"},
-    {"id": "15", "label": "Noise",       "icon": "mdi-blur"},
-    {"id": "16", "label": "Exp Rise",    "icon": "mdi-chart-bell-curve"},
-    {"id": "17", "label": "Exp Decay",   "icon": "mdi-chart-bell-curve"},
-    {"id": "18", "label": "Multi Tone",  "icon": "mdi-music-note-plus"},
-    {"id": "19", "label": "Sinc",        "icon": "mdi-chart-bell-curve-cumulative"},
-    {"id": "20", "label": "Lorenz",      "icon": "mdi-chart-bell-curve"},
-    {"id": "21", "label": "Impulse",     "icon": "mdi-arrow-up-bold"},
-    {"id": "22", "label": "PRBS",        "icon": "mdi-code-brackets"},
-    {"id": "23", "label": "AM",          "icon": "mdi-signal-variant"},
-    {"id": "24", "label": "FM",          "icon": "mdi-signal-variant"},
-    {"id": "25", "label": "Chirp",       "icon": "mdi-signal"},
-    {"id": "26", "label": "ECG",         "icon": "mdi-heart-pulse"},
-    {"id": "27", "label": "Gauss",       "icon": "mdi-chart-bell-curve"},
-    {"id": "28", "label": "LFPulse",     "icon": "mdi-pulse"},
-    {"id": "29", "label": "RSPulse",     "icon": "mdi-pulse"},
-    {"id": "30", "label": "CPulse",      "icon": "mdi-pulse"},
-    {"id": "31", "label": "PWM",         "icon": "mdi-square-wave"},
-    {"id": "32", "label": "NPulse",      "icon": "mdi-pulse"},
-    {"id": "33", "label": "Trapezia",    "icon": "mdi-shape"},
+_WAVEFORM_DEFS: list[dict] = [
+    # label (= fygen description)               CH1  CH2  icon
+    {"label": "Sin",                     "ch1": 0,  "ch2": 0,  "icon": "mdi-sine-wave"},
+    {"label": "Square",                  "ch1": 1,  "ch2": 1,  "icon": "mdi-square-wave"},
+    {"label": "CMOS",                    "ch1": 2,  "ch2": 2,  "icon": "mdi-chip"},
+    {"label": "Adjustable Pulse",        "ch1": 3,  "ch2": None, "icon": "mdi-pulse"},  # CH1 only
+    {"label": "DC",                      "ch1": 4,  "ch2": 3,  "icon": "mdi-minus"},
+    {"label": "Triangle",               "ch1": 5,  "ch2": 4,  "icon": "mdi-triangle-wave"},
+    {"label": "Ramp",                    "ch1": 6,  "ch2": 5,  "icon": "mdi-chart-line"},
+    {"label": "Negative Ramp",           "ch1": 7,  "ch2": 6,  "icon": "mdi-chart-line"},
+    {"label": "Stairstep Triangle",      "ch1": 8,  "ch2": 7,  "icon": "mdi-stairs"},
+    {"label": "Stairstep",               "ch1": 9,  "ch2": 8,  "icon": "mdi-stairs-up"},
+    {"label": "Negative Stairstep",      "ch1": 10, "ch2": 9,  "icon": "mdi-stairs-down"},
+    {"label": "Exponential",             "ch1": 11, "ch2": 10, "icon": "mdi-chart-bell-curve"},
+    {"label": "Negative Exponential",    "ch1": 12, "ch2": 11, "icon": "mdi-chart-bell-curve"},
+    {"label": "Falling Exponential",     "ch1": 13, "ch2": 12, "icon": "mdi-chart-bell-curve"},
+    {"label": "Neg Falling Exponential", "ch1": 14, "ch2": 13, "icon": "mdi-chart-bell-curve"},
+    {"label": "Logarithm",              "ch1": 15, "ch2": 14, "icon": "mdi-chart-line-variant"},
+    {"label": "Negative Logarithm",      "ch1": 16, "ch2": 15, "icon": "mdi-chart-line-variant"},
+    {"label": "Falling Logarithm",       "ch1": 17, "ch2": 16, "icon": "mdi-chart-line-variant"},
+    {"label": "Neg Falling Logarithm",   "ch1": 18, "ch2": 17, "icon": "mdi-chart-line-variant"},
+    {"label": "Full Wave",               "ch1": 19, "ch2": 18, "icon": "mdi-wave"},
+    {"label": "Negative Full Wave",      "ch1": 20, "ch2": 19, "icon": "mdi-wave"},
+    {"label": "Half Wave",               "ch1": 21, "ch2": 20, "icon": "mdi-wave"},
+    {"label": "Negative Half Wave",      "ch1": 22, "ch2": 21, "icon": "mdi-wave"},
+    {"label": "Lorentz Pulse",           "ch1": 23, "ch2": 22, "icon": "mdi-chart-bell-curve"},
+    {"label": "Multitone",               "ch1": 24, "ch2": 23, "icon": "mdi-music-note-plus"},
+    {"label": "Random",                  "ch1": 25, "ch2": 24, "icon": "mdi-blur"},
+    {"label": "ECG",                     "ch1": 26, "ch2": 25, "icon": "mdi-heart-pulse"},
+    {"label": "Trapezoidal Pulse",       "ch1": 27, "ch2": 26, "icon": "mdi-shape"},
+    {"label": "Sinc Pulse",              "ch1": 28, "ch2": 27, "icon": "mdi-chart-bell-curve-cumulative"},
+    {"label": "Impulse",                 "ch1": 29, "ch2": 28, "icon": "mdi-arrow-up-bold"},
+    {"label": "Gauss White Noise",       "ch1": 30, "ch2": 29, "icon": "mdi-blur"},
+    {"label": "AM",                      "ch1": 31, "ch2": 30, "icon": "mdi-signal-variant"},
+    {"label": "FM",                      "ch1": 32, "ch2": 31, "icon": "mdi-signal-variant"},
+    {"label": "Chirp",                   "ch1": 33, "ch2": 32, "icon": "mdi-signal"},
 ]
 
-_WAVEFORM_OPTIONS = [w["label"] for w in _WAVEFORMS]
-_WAVEFORM_LABEL_TO_ID = {w["label"]: w["id"] for w in _WAVEFORMS}
+# Add arbitrary waveforms (arb1-64)
+for _i in range(1, 65):
+    _WAVEFORM_DEFS.append({
+        "label": f"Arb {_i}",
+        "ch1": 33 + _i,    # 34..97
+        "ch2": 32 + _i,    # 33..96
+        "icon": "mdi-waveform",
+    })
+
+# Per-channel waveform option lists (Adjustable Pulse is CH1-only)
+_CH1_WAVEFORM_OPTIONS = [w["label"] for w in _WAVEFORM_DEFS if w["ch1"] is not None]
+_CH2_WAVEFORM_OPTIONS = [w["label"] for w in _WAVEFORM_DEFS if w["ch2"] is not None]
+_WAVEFORM_OPTIONS = _CH1_WAVEFORM_OPTIONS  # default (superset)
+
+# label -> per-channel ID lookup
+_LABEL_TO_CH_ID: dict[str, dict[str, int | None]] = {
+    w["label"]: {"CH1": w["ch1"], "CH2": w["ch2"]}
+    for w in _WAVEFORM_DEFS
+}
+
+# Reverse: per-channel ID -> label
+_CH1_ID_TO_LABEL: dict[int, str] = {
+    w["ch1"]: w["label"] for w in _WAVEFORM_DEFS if w["ch1"] is not None
+}
+_CH2_ID_TO_LABEL: dict[int, str] = {
+    w["ch2"]: w["label"] for w in _WAVEFORM_DEFS if w["ch2"] is not None
+}
 
 # Gate time options
 _GATE_TIMES = [
@@ -99,7 +130,7 @@ _CAPABILITY = Capability(
         {
             "id": "waveform", "label": "Waveform", "type": "select",
             "options": _WAVEFORM_OPTIONS,
-            "default": "Sine",
+            "default": "Sin",
             "applicable_to": ["CH1", "CH2"],
         },
         {
@@ -161,17 +192,18 @@ class FY6800(InstrumentBase):
         # Per-channel state
         self._ch_state = {
             "CH1": {
-                "waveform": "Sine", "frequency": 1000.0,
+                "waveform": "Sin", "frequency": 1000.0,
                 "amplitude": 1.0, "offset": 0.0,
                 "duty": 50.0, "phase": 0.0, "output": False,
             },
             "CH2": {
-                "waveform": "Sine", "frequency": 1000.0,
+                "waveform": "Sin", "frequency": 1000.0,
                 "amplitude": 1.0, "offset": 0.0,
                 "duty": 50.0, "phase": 0.0, "output": False,
             },
         }
         self._gate_time = "1s"
+        self._coupling = "AC"  # default; no readback command available
         # Read current state from device
         self._sync_from_device()
 
@@ -261,13 +293,14 @@ class FY6800(InstrumentBase):
         """Read current settings from device to sync internal state."""
         try:
             for ch, prefix in [("CH1", "RM"), ("CH2", "RF")]:
-                # Waveform
+                # Waveform (CH1 and CH2 have different ID mappings)
                 raw = self._res.query(f"{prefix}W")
                 try:
                     idx = int(raw)
-                    wf = _WAVEFORMS[idx]["label"] if idx < len(_WAVEFORMS) else "Sine"
+                    id_to_label = _CH1_ID_TO_LABEL if ch == "CH1" else _CH2_ID_TO_LABEL
+                    wf = id_to_label.get(idx, "Sin")
                 except (ValueError, IndexError):
-                    wf = "Sine"
+                    wf = "Sin"
                 self._ch_state[ch]["waveform"] = wf
 
                 # Frequency
@@ -286,8 +319,14 @@ class FY6800(InstrumentBase):
                 raw = self._res.query(f"{prefix}P")
                 self._ch_state[ch]["phase"] = self._decode_phase(raw)
 
-            _log.info("FY6800: synced from device: CH1=%s, CH2=%s",
-                      self._ch_state["CH1"], self._ch_state["CH2"])
+            # Counter gate time (RCG returns: 0=1s, 1=10s, 2=100s)
+            raw_gt = self._res.query("RCG").strip()
+            gt_rev = {"0": "1s", "1": "10s", "2": "100s"}
+            self._gate_time = gt_rev.get(raw_gt, "1s")
+
+            _log.info("FY6800: synced from device: CH1=%s, CH2=%s, gate=%s",
+                      self._ch_state["CH1"], self._ch_state["CH2"],
+                      self._gate_time)
         except Exception as e:
             _log.warning("FY6800: sync_from_device failed: %s", e)
 
@@ -331,8 +370,9 @@ class FY6800(InstrumentBase):
 
             if "waveform" in settings:
                 wf = settings["waveform"]
-                wf_id = _WAVEFORM_LABEL_TO_ID.get(wf, "0")
-                self._res.write(f"{prefix}W{int(wf_id):02d}")
+                ch_ids = _LABEL_TO_CH_ID.get(wf)
+                wf_id = ch_ids[ch] if ch_ids else 0
+                self._res.write(f"{prefix}W{wf_id:02d}")
                 state["waveform"] = wf
 
             if "frequency" in settings:
@@ -371,8 +411,15 @@ class FY6800(InstrumentBase):
             if "gate_time" in settings:
                 gt = settings["gate_time"]
                 gt_map = {"1s": "0", "10s": "1", "100s": "2"}
-                self._res.write(f"WCT{gt_map.get(gt, '0')}")
+                self._res.write(f"WCG{gt_map.get(gt, '0')}")
                 self._gate_time = gt
+            if settings.get("counter_reset"):
+                self._res.write("WCZ0")
+            if "coupling" in settings:
+                cp = settings["coupling"]
+                # WCC0=AC(Front Counter), WCC1=DC(Rear Trig) — manual is reversed!
+                self._res.write("WCC0" if cp == "AC" else "WCC1")
+                self._coupling = cp
 
     def measure(self) -> MeasurementResult:
         """Return measurement based on current function.
@@ -384,13 +431,44 @@ class FY6800(InstrumentBase):
 
         if ch == "COUNTER":
             raw = self._res.query("RCF")
-            freq = self._decode_freq(raw)
+            count = self._decode_freq(raw)
+            # RCF returns raw count within gate window.
+            # Frequency [Hz] = count / gate_time [s].
+            gt_map = {"1s": 1.0, "10s": 10.0, "100s": 100.0}
+            gate_s = gt_map.get(self._gate_time, 1.0)
+            freq = count / gate_s
+
+            # Additional counter readings
+            try:
+                period_ns = float(self._res.query("RCT"))
+            except (ValueError, TypeError):
+                period_ns = 0.0
+            try:
+                pos_width_ns = float(self._res.query("RC+"))
+            except (ValueError, TypeError):
+                pos_width_ns = 0.0
+            try:
+                neg_width_ns = float(self._res.query("RC-"))
+            except (ValueError, TypeError):
+                neg_width_ns = 0.0
+            try:
+                duty_pct = float(self._res.query("RCD")) / 10.0
+            except (ValueError, TypeError):
+                duty_pct = 0.0
+
             return MeasurementResult(
                 value=freq,
                 unit="Hz",
                 function="COUNTER",
                 range="",
                 timestamp=time.time(),
+                extra={
+                    "period_ns": period_ns,
+                    "pos_width_ns": pos_width_ns,
+                    "neg_width_ns": neg_width_ns,
+                    "duty_pct": duty_pct,
+                    "coupling": self._coupling,
+                },
             )
 
         # CH1 or CH2: read back the frequency as the "measurement"
@@ -414,10 +492,98 @@ class FY6800(InstrumentBase):
             },
         )
 
+    # ------------------------------------------------------------------
+    # Arbitrary waveform upload
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _encode_arb_data(raw_values: list[int]) -> bytes:
+        """Encode 8192 raw 14-bit values to FY6800 binary format.
+
+        Each sample: [value & 0xFF, (value >> 8) & 0x3F]  (little-endian split)
+        """
+        data = bytearray()
+        for v in raw_values:
+            v = max(0, min(16383, v))
+            data.append(v & 0xFF)
+            data.append((v >> 8) & 0x3F)
+        return bytes(data)
+
+    def upload_waveform(self, slot: int, samples: list[int]) -> dict:
+        """Upload arbitrary waveform to DDS_WAVE slot.
+
+        Args:
+            slot: Arb slot number (1..64).
+            samples: 8192 values, each 0..16383 (14-bit).
+
+        Returns:
+            {"ok": True} on success, {"ok": False, "error": "..."} on failure.
+        """
+        if not (1 <= slot <= 64):
+            return {"ok": False, "error": f"slot must be 1..64, got {slot}"}
+        if len(samples) != 8192:
+            return {"ok": False, "error": f"need 8192 samples, got {len(samples)}"}
+
+        # Check that target arb is not active on either channel
+        try:
+            ch1_wf = self._res.query("RMW").strip()
+            ch2_wf = self._res.query("RFW").strip()
+            arb_ch1_idx = 33 + slot
+            arb_ch2_idx = 32 + slot
+            if int(ch1_wf) == arb_ch1_idx:
+                return {"ok": False, "error": f"Arb {slot} is active on CH1 — select a different waveform first"}
+            if int(ch2_wf) == arb_ch2_idx:
+                return {"ok": False, "error": f"Arb {slot} is active on CH2 — select a different waveform first"}
+        except ValueError:
+            pass  # non-numeric response; proceed cautiously
+
+        # Handshake: send DDS_WAVE{slot} command
+        cmd = f"DDS_WAVE{slot}"
+        _log.info("FY6800: uploading arb slot %d (%s)", slot, cmd)
+        self._res._ser.reset_input_buffer()
+        self._res._ser.write((cmd + "\n").encode("ascii"))
+        time.sleep(0.3)
+
+        avail = self._res._ser.in_waiting
+        resp = self._res._ser.read(avail) if avail else b""
+        resp_str = resp.decode("ascii", errors="replace").strip()
+
+        if "W" not in resp_str:
+            _log.warning("FY6800: DDS_WAVE handshake failed: %r", resp_str)
+            return {"ok": False, "error": f"Handshake failed (response: {resp_str!r})"}
+
+        # Send binary data (16384 bytes)
+        data = self._encode_arb_data(samples)
+        self._res.write_bytes(data)
+
+        # Wait for HN response (up to 15 seconds)
+        full_resp = b""
+        for _ in range(15):
+            time.sleep(1.0)
+            avail = self._res._ser.in_waiting
+            if avail:
+                full_resp += self._res._ser.read(avail)
+                decoded = full_resp.decode("ascii", errors="replace")
+                if "N" in decoded:
+                    break
+
+        final = full_resp.decode("ascii", errors="replace").strip()
+        if "H" in final and "N" in final:
+            _log.info("FY6800: arb slot %d upload SUCCESS", slot)
+            return {"ok": True}
+
+        _log.warning("FY6800: arb slot %d upload FAILED: %r", slot, final)
+        return {"ok": False, "error": f"Upload failed (response: {final!r})"}
+
     def get_channel_state(self, ch: str) -> dict:
         """Return current state for a channel (used by API for UI sync)."""
         if ch in self._ch_state:
-            return dict(self._ch_state[ch])
+            state = dict(self._ch_state[ch])
+            # Include per-channel waveform options (Adjustable Pulse is CH1-only)
+            state["waveform_options"] = (
+                _CH1_WAVEFORM_OPTIONS if ch == "CH1" else _CH2_WAVEFORM_OPTIONS
+            )
+            return state
         if ch == "COUNTER":
-            return {"gate_time": self._gate_time}
+            return {"gate_time": self._gate_time, "coupling": self._coupling}
         return {}

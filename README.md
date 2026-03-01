@@ -1,23 +1,26 @@
-# Instrument Console (dmmconsole)  [![version](https://img.shields.io/badge/version-1.2.0-blue)](release_notes/v1.2.0.md)
+# Instrument Console (dmmconsole)  [![version](https://img.shields.io/badge/version-1.4.0-blue)](release_notes/v1.4.0.md)
 
-Web-based instrument control panel — Digital Multimeter and SCPI Terminal.
+Web-based instrument control panel — Digital Multimeter, Signal Generator, and SCPI Terminal.
 
 Supports **HP 34401A**, **Keithley 2000**, **Keithley 2010**, and **ADCMT 7451A** (GPIB and USB direct),
+**FeelElec FY6800** DDS Signal Generator / Counter (USB serial),
 plus a raw SCPI terminal for any connected instrument.
 
 - Real-time measurement display with SI prefix formatting
 - Oscilloscope-like waveform graph (Chart.js)
 - Full control panel reproduced from capability descriptors
+- Signal generator: CH1/CH2 control, frequency counter, arbitrary waveform upload
 - Raw SCPI terminal with TX / RX history and CR/LF line-ending control
 - USB instrument discovery (VISA resource string auto-populated from dropdown)
-- GPIB via [agilent82357b](../agilent82357b), LAN/USB via PyVISA
+- GPIB via [agilent82357b](../agilent82357b), LAN/USB via PyVISA, Serial via pyserial
 - Vue.js 3 + Vuetify 3 frontend (dark theme, easy to restyle)
 
 ## Installation
 
 ```bash
 # 1. Backend dependencies
-pip install fastapi "uvicorn[standard]" websockets
+pip install fastapi "uvicorn[standard]" websockets pyserial
+
 pip install -e ../agilent82357b   # GPIB driver
 
 # 2. Frontend (build once)
@@ -52,6 +55,7 @@ Then open http://localhost:5173.
 |-----|-------------|
 | `/` | Home – instrument / tool selection |
 | `/dmm` | DMM control panel with real-time measurement |
+| `/siggen` | Signal generator control (CH1/CH2/Counter/ARB) |
 | `/terminal` | Raw SCPI terminal (TX/RX history, CR/LF control) |
 
 ## Adding a new instrument
@@ -71,9 +75,10 @@ Then open http://localhost:5173.
 |-------|-----------|--------|
 | HP 34401A | GPIB | Tested |
 | Keithley 2000 | GPIB | Implemented, untested |
-| Keithley 2010 | GPIB | Implemented, untested |
+| Keithley 2010 | GPIB | Tested |
 | ADCMT 7451A | GPIB | Tested |
 | ADCMT 7451A | USB direct | Tested |
+| FeelElec FY6800 | USB serial | Tested |
 
 > Tested on **ADVANTEST AD7451A** (the former brand name; functionally identical to ADCMT 7451A).
 

@@ -52,6 +52,13 @@ class FY6800Serial:
         self._ser.write((cmd + "\n").encode("ascii"))
         time.sleep(_CMD_DELAY)
 
+    def write_bytes(self, data: bytes) -> None:
+        """Send raw bytes without LF termination or delay."""
+        if self._ser is None or not self._ser.is_open:
+            raise RuntimeError("Serial port not open")
+        self._ser.write(data)
+        self._ser.flush()
+
     def read(self) -> str:
         """Read a response line."""
         if self._ser is None or not self._ser.is_open:

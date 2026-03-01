@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-03-01
+
+### Added
+- **ARB (Arbitrary Waveform) tab** – generate waveforms from mathematical formulas,
+  preview in real time, and upload to FY6800 DDS memory (Arb 1-64).
+  Formula input (`f(x)`, x=0..1, 8192 points), 8 presets, Chart.js preview,
+  slot/channel selection, conflict check, and help dialog.
+- **Waveform upload API** – `POST /api/upload_waveform` endpoint.
+  Backend: `FY6800.upload_waveform()` (DDS_WAVE handshake → 14-bit LE split data →
+  HN response polling) and `FY6800Serial.write_bytes()` (raw binary send).
+- **Counter tab enhancements** – Period, +Width, -Width, Duty readings with
+  auto-scaling (ns → μs → ms → s). Coupling toggle (AC Front / DC Rear) and
+  Reset button (WCC0/WCC1, WCZ0).
+- **Arb upload test suite** (`test_fy6800.py` test 8) – based on
+  [fygen](https://github.com/mattwach/fygen) protocol analysis. 14-bit LE split
+  format (8192 samples × 2 bytes). Verified on hardware: DC/Square/Sine all passed.
+- **CH1/CH2 frequency unit selector** – uHz / mHz / Hz / kHz / MHz with decimal
+  input. Leverages FY6800's full μHz resolution.
+
+### Changed
+- **Waveform names corrected to fygen standard** – based on fygen's `wavedef.py`
+  for accurate FY6800 waveform names. FY6900-only waveforms excluded.
+- **Separate CH1/CH2 waveform ID mapping** – CH2 = CH1 − 1 from Adjustable Pulse
+  onward. Adjustable Pulse removed from CH2 dropdown (CH1-only).
+- **Arb 1-64 added to waveform list** – CH1: ID 34-97, CH2: ID 33-96.
+- `CommandRequest` extended with `counter_reset` and `coupling` fields.
+
+### Fixed
+- Adjustable Pulse incorrectly shown in CH2 waveform dropdown.
+
+---
+
 ## [1.3.0] - 2026-03-01
 
 ### Added

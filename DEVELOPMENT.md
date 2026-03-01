@@ -8,7 +8,7 @@ dmmconsole/
 │   ├── version.py                   # Single source of truth for version number
 │   ├── main.py                      # FastAPI app, CORS, SPA fallback, /ws mount
 │   ├── api/
-│   │   ├── routes.py                # REST endpoints (/api/version, /api/instruments, …)
+│   │   ├── routes.py                # REST endpoints (/api/*, /api/upload_waveform)
 │   │   ├── websocket.py             # WebSocket /ws/stream (measurement streaming)
 │   │   └── terminal.py              # REST endpoints (/api/terminal/…)
 │   ├── gpib/
@@ -52,7 +52,7 @@ dmmconsole/
             ├── Waveform.vue         # Chart.js realtime scrolling graph
             └── panels/
                 ├── GenericDMMPanel.vue       # Dynamically built from Capability descriptor
-                └── SignalGeneratorPanel.vue  # CH1/CH2/Counter tabs for FY6800
+                └── SignalGeneratorPanel.vue  # CH1/CH2/Counter/ARB tabs for FY6800
 ```
 
 ---
@@ -106,7 +106,8 @@ See `backend/instruments/siggen/fy6800.py` for an example.  Key differences from
 - Communication via `FY6800Serial` (pyserial wrapper) instead of pyvisa.
 - `apply_settings()` handles per-channel parameters (waveform, frequency, amplitude, etc.).
 - `get_channel_state(ch)` returns current channel state for UI sync.
-- The frontend uses `SignalGeneratorPanel.vue` (channel tabs) instead of `GenericDMMPanel.vue`.
+- `upload_waveform(slot, samples)` uploads arbitrary waveform data to DDS memory.
+- The frontend uses `SignalGeneratorPanel.vue` (CH1/CH2/Counter/ARB tabs) instead of `GenericDMMPanel.vue`.
 
 ---
 
