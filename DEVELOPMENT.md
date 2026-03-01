@@ -12,19 +12,22 @@ dmmconsole/
 │   │   ├── websocket.py             # WebSocket /ws/stream (measurement streaming)
 │   │   └── terminal.py              # REST endpoints (/api/terminal/…)
 │   ├── gpib/
-│   │   └── manager.py               # GPIBManager singleton (GPIB / LAN / USB) – DMM
+│   │   ├── manager.py               # GPIBManager singleton (GPIB / LAN / USB / Serial)
+│   │   └── serial_resource.py       # FY6800Serial: pyserial wrapper with pyvisa-compatible API
 │   ├── terminal/
 │   │   └── manager.py               # TerminalManager singleton – independent from DMM
 │   ├── instruments/
 │   │   ├── base.py                  # InstrumentBase, Capability, MeasurementResult
 │   │   ├── registry.py              # REGISTRY dict — add new instruments here
-│   │   └── dmm/
-│   │       ├── base_dmm.py          # DMMBase: shared SCPI logic for most DMMs
-│   │       ├── hp34401a.py
-│   │       ├── keithley2000.py
-│   │       ├── keithley2010.py
-│   │       ├── ad7451a.py           # ADCMT 7451A – GPIB/SCPI
-│   │       └── ad7451a_usb.py       # ADCMT 7451A – USB/ADC
+│   │   ├── dmm/
+│   │   │   ├── base_dmm.py          # DMMBase: shared SCPI logic for most DMMs
+│   │   │   ├── hp34401a.py
+│   │   │   ├── keithley2000.py
+│   │   │   ├── keithley2010.py
+│   │   │   ├── ad7451a.py           # ADCMT 7451A – GPIB/SCPI
+│   │   │   └── ad7451a_usb.py       # ADCMT 7451A – USB/ADC
+│   │   └── siggen/
+│   │       └── fy6800.py            # FeelElec FY6800 – USB serial
 │   └── measurement/
 │       └── session.py               # MeasurementSession singleton (streaming loop)
 └── frontend/
@@ -33,21 +36,23 @@ dmmconsole/
         ├── main.js                  # app.use(router, pinia, vuetify)
         ├── plugins/vuetify.js       # Theme (dark, primary=#00e5ff, secondary=#00ff88)
         ├── router/
-        │   └── index.js             # / → HomeView, /dmm → DmmView, /terminal → TerminalView
+        │   └── index.js             # /, /dmm, /terminal, /siggen
         ├── stores/
-        │   ├── instrument.js        # Pinia: DMM connection state, capability, commands
+        │   ├── instrument.js        # Pinia: connection state, capability, commands
         │   ├── measurement.js       # Pinia: WebSocket client, buffer (max 500 pts)
         │   └── terminal.js          # Pinia: terminal connection, TX/RX history
         ├── views/
         │   ├── HomeView.vue         # Landing page with instrument/tool cards
-        │   ├── DmmView.vue          # DMM control panel (formerly App.vue content)
-        │   └── TerminalView.vue     # Raw SCPI terminal (TX/RX panes, CR/LF control)
+        │   ├── DmmView.vue          # DMM control panel
+        │   ├── TerminalView.vue     # Raw SCPI terminal (TX/RX panes, CR/LF control)
+        │   └── SignalGeneratorView.vue  # Signal generator control panel
         └── components/
-            ├── ConnectionBar.vue    # Model / interface selector, connect button (DMM)
+            ├── ConnectionBar.vue    # Model / interface selector (GPIB/LAN/USB/Serial)
             ├── MeasurementDisplay.vue
             ├── Waveform.vue         # Chart.js realtime scrolling graph
             └── panels/
-                └── GenericDMMPanel.vue  # Dynamically built from Capability descriptor
+                ├── GenericDMMPanel.vue       # Dynamically built from Capability descriptor
+                └── SignalGeneratorPanel.vue  # CH1/CH2/Counter tabs for FY6800
 ```
 
 ---
@@ -93,6 +98,15 @@ Subclass `InstrumentBase` directly (see `ad7451a_usb.py` for an example) and imp
 - `reset()`
 - `apply_settings(settings: dict)`
 - `measure() → MeasurementResult`
+
+### Signal generators (serial)
+
+See `backend/instruments/siggen/fy6800.py` for an example.  Key differences from DMMs:
+- `instrument_type = "siggen"` in the Capability descriptor.
+- Communication via `FY6800Serial` (pyserial wrapper) instead of pyvisa.
+- `apply_settings()` handles per-channel parameters (waveform, frequency, amplitude, etc.).
+- `get_channel_state(ch)` returns current channel state for UI sync.
+- The frontend uses `SignalGeneratorPanel.vue` (channel tabs) instead of `GenericDMMPanel.vue`.
 
 ---
 

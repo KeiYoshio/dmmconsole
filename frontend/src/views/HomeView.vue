@@ -44,15 +44,15 @@
             </v-card>
           </v-col>
 
-          <!-- Coming soon placeholder -->
+          <!-- Signal Generator card -->
           <v-col cols="12" sm="6" md="4" lg="3">
-            <v-card disabled>
+            <v-card hover @click="router.push('/siggen')">
               <v-card-item>
                 <template #prepend>
-                  <v-icon icon="mdi-help-circle-outline" size="32" />
+                  <v-icon icon="mdi-waveform" color="primary" size="32" />
                 </template>
-                <v-card-title>Coming Soon</v-card-title>
-                <v-card-subtitle>More instruments</v-card-subtitle>
+                <v-card-title>Signal Generator</v-card-title>
+                <v-card-subtitle>DDS generator &amp; counter</v-card-subtitle>
               </v-card-item>
             </v-card>
           </v-col>

@@ -88,6 +88,39 @@
         </v-combobox>
       </v-col>
 
+      <!-- Serial port – combobox with port discovery -->
+      <v-col v-else-if="form.interface === 'serial'" cols="12" sm="4">
+        <v-combobox
+          :model-value="form.serial_port"
+          @update:model-value="v => form.serial_port = typeof v === 'object' && v ? (v.port ?? '') : (v ?? '')"
+          :items="serialPorts"
+          item-title="port"
+          item-value="port"
+          label="Serial Port"
+          density="compact"
+          hide-details
+          :loading="loadingSerial"
+          :disabled="instrStore.connected"
+          placeholder="/dev/ttyUSB0"
+          no-filter
+          :no-data-text="loadingSerial ? 'Scanning…' : 'No serial ports found'"
+          @focus="fetchSerialPorts"
+        >
+          <template #item="{ item, props }">
+            <v-list-item v-bind="props">
+              <template #title>
+                <span class="text-body-2 font-weight-medium">
+                  {{ item.raw.description || item.raw.port }}
+                </span>
+              </template>
+              <template #subtitle>
+                <span style="font-family: monospace; font-size: 0.75rem">{{ item.raw.port }}</span>
+              </template>
+            </v-list-item>
+          </template>
+        </v-combobox>
+      </v-col>
+
       <!-- Connect / Disconnect button -->
       <v-col cols="auto">
         <v-btn
@@ -136,17 +169,19 @@ const instrStore = useInstrumentStore()
 const measStore  = useMeasurementStore()
 
 const interfaces = [
-  { title: 'GPIB (82357B)', value: 'gpib' },
-  { title: 'LAN / VXI-11',  value: 'lan'  },
-  { title: 'USB-TMC',        value: 'usb'  },
+  { title: 'GPIB (82357B)', value: 'gpib'   },
+  { title: 'LAN / VXI-11',  value: 'lan'    },
+  { title: 'USB-TMC',        value: 'usb'   },
+  { title: 'Serial',         value: 'serial' },
 ]
 
 const form = reactive({
-  model_id:    instrStore.models[0]?.id ?? 'hp34401a',
-  interface:   'gpib',
-  gpib_addr:   6,
-  ip_address:  '',
-  visa_string: '',
+  model_id:     instrStore.models[0]?.id ?? 'hp34401a',
+  interface:    'gpib',
+  gpib_addr:    6,
+  ip_address:   '',
+  visa_string:  '',
+  serial_port:  '',
 })
 
 const usbDevices = ref([])
@@ -163,6 +198,23 @@ async function fetchUsbDevices() {
     usbDevices.value = []
   } finally {
     loadingUsb.value = false
+  }
+}
+
+const serialPorts  = ref([])
+const loadingSerial = ref(false)
+
+async function fetchSerialPorts() {
+  if (loadingSerial.value) return
+  loadingSerial.value = true
+  try {
+    const res  = await fetch('/api/serial_ports')
+    const data = await res.json()
+    serialPorts.value = data.ports ?? []
+  } catch {
+    serialPorts.value = []
+  } finally {
+    loadingSerial.value = false
   }
 }
 

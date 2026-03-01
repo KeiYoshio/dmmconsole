@@ -21,15 +21,25 @@ router = APIRouter()
 
 class ConnectRequest(BaseModel):
     model_id:    str
-    interface:   str = "gpib"   # "gpib" | "lan" | "usb"
+    interface:   str = "gpib"   # "gpib" | "lan" | "usb" | "serial"
     gpib_addr:   int = 6
     ip_address:  str = ""
     visa_string: str = ""
+    serial_port: str = ""
 
 class CommandRequest(BaseModel):
-    function: str | None = None
-    range:    str | None = None
-    nplc:     float | None = None
+    function:  str | None = None
+    range:     str | None = None
+    nplc:      float | None = None
+    # Signal generator settings
+    waveform:  str | None = None
+    frequency: float | None = None
+    amplitude: float | None = None
+    offset:    float | None = None
+    duty:      float | None = None
+    phase:     float | None = None
+    output:    bool | None = None
+    gate_time: str | None = None
 
 class StatusResponse(BaseModel):
     connected:   bool
@@ -78,6 +88,7 @@ def connect(req: ConnectRequest):
             gpib_addr   = req.gpib_addr,
             ip_address  = req.ip_address,
             visa_string = req.visa_string,
+            serial_port = req.serial_port,
         )
         try:
             resource = mgr.connect(config)
@@ -103,10 +114,12 @@ def connect(req: ConnectRequest):
 
         instrument = create(req.model_id, resource)
         # Clear SCPI error state (-410/-420) left from any previous session
-        try:
-            resource.write("*CLS")
-        except Exception:
-            pass
+        # (skip for serial instruments which don't speak SCPI)
+        if req.interface != "serial":
+            try:
+                resource.write("*CLS")
+            except Exception:
+                pass
         sess.set_instrument(instrument)
         idn = ""
         try:
@@ -197,3 +210,30 @@ async def measure_once():
 def get_buffer():
     """Return the current measurement buffer (for reconnected clients)."""
     return MeasurementSession.get().get_buffer()
+
+
+# ---------------------------------------------------------------------------
+# Serial port discovery
+# ---------------------------------------------------------------------------
+
+@router.get("/serial_ports")
+def get_serial_ports():
+    """Return list of available serial ports."""
+    from ..gpib.serial_resource import list_serial_ports
+    return {"ports": list_serial_ports()}
+
+
+# ---------------------------------------------------------------------------
+# Signal generator channel state
+# ---------------------------------------------------------------------------
+
+@router.get("/channel_state/{channel}")
+def get_channel_state(channel: str):
+    """Return current state for a signal generator channel (CH1/CH2/COUNTER)."""
+    sess = MeasurementSession.get()
+    instrument = sess._instrument
+    if instrument is None:
+        raise HTTPException(status_code=400, detail="Not connected.")
+    if not hasattr(instrument, "get_channel_state"):
+        raise HTTPException(status_code=400, detail="Instrument does not support channel state.")
+    return instrument.get_channel_state(channel.upper())

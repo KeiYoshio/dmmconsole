@@ -25,17 +25,19 @@ if _A82357 not in sys.path:
 class ConnectionConfig:
     def __init__(
         self,
-        interface: str,         # "gpib" | "lan" | "usb"
+        interface: str,         # "gpib" | "lan" | "usb" | "serial"
         model_id:  str,
         gpib_addr: int  = 0,
         ip_address: str = "",
         visa_string: str = "",  # full VISA resource string for usb/lan
+        serial_port: str = "",  # serial port path for serial interface
     ) -> None:
         self.interface   = interface
         self.model_id    = model_id
         self.gpib_addr   = gpib_addr
         self.ip_address  = ip_address
         self.visa_string = visa_string
+        self.serial_port = serial_port
 
 
 class GPIBManager:
@@ -70,6 +72,15 @@ class GPIBManager:
         """Open a VISA resource and return it."""
         if self.is_connected:
             self.disconnect()
+
+        if config.interface == "serial":
+            from .serial_resource import FY6800Serial
+            if not config.serial_port:
+                raise ValueError("For serial connections provide a serial port path.")
+            resource = FY6800Serial(config.serial_port)
+            self._resource = resource
+            self._config   = config
+            return resource
 
         if config.interface == "gpib":
             import agilent82357b

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-03-01
+
+### Added
+- **FeelElec FY6800 DDS Signal Generator / Counter support** – new instrument type
+  `siggen` with USB serial (CH340) interface at 115200 bps.
+  - Two-channel output control (CH1/CH2): waveform (34 presets), frequency, amplitude,
+    offset, duty cycle, phase, output ON/OFF.
+  - Frequency counter with configurable gate time (1s / 10s / 100s).
+  - Auto-detection of FY6800 on serial ports via `UMO` probe.
+  - 34 preset waveforms confirmed (Sine, Square, Triangle, ECG, Chirp, etc.).
+  - Arbitrary waveform upload: DDS_WAVE handshake confirmed, data format under investigation.
+- **Signal Generator page** (`/siggen`) – dedicated UI with channel tabs (CH1/CH2/Counter),
+  waveform selector, numeric parameter inputs, output toggle button, and gate time control.
+- **Serial interface** – `ConnectionBar` now supports Serial as an interface option with
+  serial port combobox (auto-discovery via `GET /api/serial_ports`).
+- **`FY6800Serial`** (`backend/gpib/serial_resource.py`) – pyvisa-compatible serial
+  communication wrapper for FY6800's text-based protocol.
+- **New API endpoints**:
+  - `GET /api/serial_ports` – enumerate available serial ports.
+  - `GET /api/channel_state/{channel}` – read current signal generator channel state.
+- **`SignalGeneratorPanel.vue`** – Vue component with per-channel form state, device sync
+  on tab switch, and redundant-send prevention.
+- **Protocol investigation documentation** (`docs/FY6800_investigation_summary.md`).
+
+### Changed
+- `CommandRequest` model extended with signal generator fields (waveform, frequency,
+  amplitude, offset, duty, phase, output, gate_time).
+- `GPIBManager.connect()` supports `interface="serial"` creating `FY6800Serial` resources.
+- `ConnectionConfig` accepts `serial_port` parameter.
+- `/api/connect` skips `*CLS` for serial instruments (non-SCPI).
+- Home page (`HomeView.vue`) now shows Signal Generator card alongside DMM and Terminal.
+
+---
+
 ## [1.2.0] - 2026-02-26
 
 ### Added
